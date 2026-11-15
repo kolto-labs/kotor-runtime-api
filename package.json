@@ -1,0 +1,39 @@
+{
+  "name": "@kolto-labs/kotor-runtime-api",
+  "version": "0.1.0",
+  "description": "Contracts for running KotOR in the browser: runtime host protocol, GameSource, runtime manifest and backend OpenAPI. Types and schemas only.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kolto-labs/kotor-runtime-api.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./openapi/*": "./openapi/*",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "schemas",
+    "openapi"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "lint:openapi": "redocly lint openapi/backend.yaml",
+    "test": "tsc --noEmit && node --test \"test/*.test.ts\""
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.78.0",
+    "@types/node": "^22.20.5",
+    "ajv": "^8.20.0",
+    "typescript": "^5.9.3"
+  }
+}
