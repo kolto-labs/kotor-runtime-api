@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kolto-labs/kotor-runtime-api/v0.1.0/schemas/runtime-manifest.schema.json",
   "title": "RuntimeManifest",
   "description": "runtime-manifest.json, published with every runtime release. Unknown properties are allowed so minor releases can add optional fields.",
   "type": "object",

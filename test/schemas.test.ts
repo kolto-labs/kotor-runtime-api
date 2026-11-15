@@ -72,6 +72,14 @@ test("a hello of another major still validates, so the peer can read and refuse 
   assert.deepEqual(rejected(validateRuntime, [hello]), []);
 });
 
+test("each schema $id names the package release it ships in", () => {
+  const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  const idOf = (file: string) =>
+    `https://raw.githubusercontent.com/kolto-labs/kotor-runtime-api/v${version}/schemas/${file}`;
+  assert.equal(protocolSchema.$id, idOf("protocol.schema.json"));
+  assert.equal(manifestSchema.$id, idOf("runtime-manifest.schema.json"));
+});
+
 test("every manifest example validates", () => {
   assert.deepEqual(rejected(validateManifest, manifestExamples), []);
 });

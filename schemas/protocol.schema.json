@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kolto-labs/kotor-runtime-api/v0.1.0/schemas/protocol.schema.json",
   "title": "kotor-runtime/1 message",
   "description": "Any message of the runtime host protocol. Validate against #/$defs/HostMessage or #/$defs/RuntimeMessage to also check direction. Unknown properties are allowed so minor releases can add optional fields.",
   "oneOf": [
