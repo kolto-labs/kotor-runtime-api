@@ -1,0 +1,275 @@
+openapi: 3.1.0
+info:
+  title: KotOR runtime backend API
+  version: 0.1.0
+  summary: Optional backend for the KotOR browser launcher.
+  description: |
+    Every endpoint is optional: the launcher works with no backend, using its built-in config and a
+    static artifact URL. Game files are never uploaded to or served from a backend; the runtime files
+    served here are the published runtime release listed in its `runtime-manifest.json`.
+
+    Unknown response properties must be ignored, so minor versions can add optional fields.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /
+    description: Relative to wherever the backend is deployed.
+security: []
+tags:
+  - name: config
+    description: Launcher configuration.
+  - name: community
+    description: Community feed.
+  - name: runtime
+    description: Published runtime releases.
+
+paths:
+  /config:
+    get:
+      tags: [config]
+      operationId: getConfig
+      summary: Launcher configuration
+      responses:
+        "200":
+          description: The launcher configuration.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/Cache-Control"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LauncherConfig"
+        "404":
+          description: The backend provides no launcher config; the launcher uses its built-in one.
+
+  /community/videos/latest:
+    get:
+      tags: [community]
+      operationId: getLatestCommunityVideos
+      summary: Latest community videos
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of videos to return. The server may return fewer.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Videos, newest first.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/Cache-Control"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoList"
+        "400":
+          $ref: "#/components/responses/Error"
+
+  /runtime/{version}/manifest:
+    parameters:
+      - $ref: "#/components/parameters/Version"
+    get:
+      tags: [runtime]
+      operationId: getRuntimeManifest
+      summary: Runtime release manifest
+      description: The release's `runtime-manifest.json`, unchanged.
+      responses:
+        "200":
+          description: The manifest.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/Cache-Control"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeManifest"
+        "304":
+          description: Not modified (the `If-None-Match` ETag matched).
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /runtime/{version}/files/{name}:
+    parameters:
+      - $ref: "#/components/parameters/Version"
+      - name: name
+        in: path
+        required: true
+        description: A file `name` from the release manifest.
+        schema:
+          type: string
+          pattern: "^[A-Za-z0-9_][A-Za-z0-9._-]*$"
+    get:
+      tags: [runtime]
+      operationId: getRuntimeFile
+      summary: Runtime release file
+      description: |
+        One file listed in the release manifest. Its bytes match the manifest's `sha256` and `size`.
+        Supports single byte ranges so large files can be fetched in chunks and resumed.
+      parameters:
+        - name: Range
+          in: header
+          description: A single byte range, for example `bytes=0-1048575`.
+          schema:
+            type: string
+            pattern: "^bytes=[0-9]*-[0-9]*$"
+        - name: If-None-Match
+          in: header
+          description: ETag from an earlier response.
+          schema:
+            type: string
+        - name: If-Range
+          in: header
+          description: ETag; the range is honoured only if it still matches, otherwise the whole file is sent.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The whole file.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/Cache-Control"
+            Accept-Ranges:
+              $ref: "#/components/headers/Accept-Ranges"
+            Content-Length:
+              $ref: "#/components/headers/Content-Length"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                contentMediaType: application/octet-stream
+        "206":
+          description: The requested byte range.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/Cache-Control"
+            Accept-Ranges:
+              $ref: "#/components/headers/Accept-Ranges"
+            Content-Length:
+              $ref: "#/components/headers/Content-Length"
+            Content-Range:
+              description: The range sent and the full size, for example `bytes 0-1048575/73400320`.
+              required: true
+              schema:
+                type: string
+                pattern: "^bytes [0-9]+-[0-9]+/[0-9]+$"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                contentMediaType: application/octet-stream
+        "304":
+          description: Not modified (the `If-None-Match` ETag matched).
+        "404":
+          $ref: "#/components/responses/Error"
+        "416":
+          description: The range cannot be satisfied for this file.
+          headers:
+            Content-Range:
+              description: The full size, for example `bytes */73400320`.
+              required: true
+              schema:
+                type: string
+                pattern: "^bytes \\*/[0-9]+$"
+
+components:
+  parameters:
+    Version:
+      name: version
+      in: path
+      required: true
+      description: Runtime release version (semver), as in the manifest's `version`.
+      schema:
+        type: string
+        pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+
+  headers:
+    ETag:
+      description: Strong entity tag of the representation.
+      required: true
+      schema:
+        type: string
+    Cache-Control:
+      description: |
+        Caching policy. A published release never changes, so manifest and file responses for a
+        version may be cached as immutable.
+      schema:
+        type: string
+    Accept-Ranges:
+      description: Always `bytes`.
+      required: true
+      schema:
+        type: string
+        const: bytes
+    Content-Length:
+      description: Number of bytes in the body.
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+
+  responses:
+    Error:
+      description: Error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    RuntimeManifest:
+      $ref: "../schemas/runtime-manifest.schema.json"
+
+    LauncherConfig:
+      type: object
+      description: Launcher configuration. Overrides the launcher's built-in defaults.
+      required: [siteDomain]
+      properties:
+        siteDomain:
+          type: string
+          description: Host name the launcher is served from.
+          format: hostname
+
+    VideoList:
+      type: object
+      required: [videos]
+      properties:
+        videos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Video"
+
+    Video:
+      type: object
+      required: [title, url, publishedAt]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: Page where the video is watched.
+        thumbnailUrl:
+          type: string
+          format: uri
+        publishedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable message.
