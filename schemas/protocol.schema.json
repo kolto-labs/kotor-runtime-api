@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kolto-labs/kotor-runtime-api/v0.1.0/schemas/protocol.schema.json",
+  "title": "kotor-runtime/1 message",
+  "description": "Any message of the runtime host protocol. Validate against #/$defs/HostMessage or #/$defs/RuntimeMessage to also check direction. Unknown properties are allowed so minor releases can add optional fields.",
+  "oneOf": [
+    { "$ref": "#/$defs/Hello" },
+    { "$ref": "#/$defs/Boot" },
+    { "$ref": "#/$defs/Input" },
+    { "$ref": "#/$defs/Pause" },
+    { "$ref": "#/$defs/Resume" },
+    { "$ref": "#/$defs/Stop" },
+    { "$ref": "#/$defs/ExtCall" },
+    { "$ref": "#/$defs/Progress" },
+    { "$ref": "#/$defs/State" },
+    { "$ref": "#/$defs/Saved" },
+    { "$ref": "#/$defs/ExtReply" }
+  ],
+  "$defs": {
+    "HostMessage": {
+      "oneOf": [
+        { "$ref": "#/$defs/Hello" },
+        { "$ref": "#/$defs/Boot" },
+        { "$ref": "#/$defs/Input" },
+        { "$ref": "#/$defs/Pause" },
+        { "$ref": "#/$defs/Resume" },
+        { "$ref": "#/$defs/Stop" },
+        { "$ref": "#/$defs/ExtCall" }
+      ]
+    },
+    "RuntimeMessage": {
+      "oneOf": [
+        { "$ref": "#/$defs/Hello" },
+        { "$ref": "#/$defs/Progress" },
+        { "$ref": "#/$defs/State" },
+        { "$ref": "#/$defs/Saved" },
+        { "$ref": "#/$defs/ExtReply" }
+      ]
+    },
+    "Hello": {
+      "type": "object",
+      "required": ["type", "protocol", "role", "capabilities"],
+      "properties": {
+        "type": { "const": "hello" },
+        "protocol": {
+          "description": "kotor-runtime/<major>. A peer refuses a major it does not support.",
+          "type": "string",
+          "pattern": "^kotor-runtime/[1-9][0-9]*$"
+        },
+        "role": { "enum": ["host", "runtime"] },
+        "capabilities": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "GameSourceRef": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "enum": ["fsa-directory", "file-list", "opfs-cache", "native-fs", "service-http"] },
+        "id": { "type": "string" }
+      }
+    },
+    "SaveStoreRef": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" }
+      }
+    },
+    "Boot": {
+      "type": "object",
+      "required": ["type", "game", "source", "saves"],
+      "properties": {
+        "type": { "const": "boot" },
+        "game": { "enum": ["k1", "k2"] },
+        "source": { "$ref": "#/$defs/GameSourceRef" },
+        "saves": { "$ref": "#/$defs/SaveStoreRef" },
+        "options": { "type": "object" }
+      }
+    },
+    "KeyboardInput": {
+      "type": "object",
+      "required": ["device", "action", "code"],
+      "properties": {
+        "device": { "const": "keyboard" },
+        "action": { "enum": ["down", "up"] },
+        "code": { "type": "string" }
+      }
+    },
+    "PointerInput": {
+      "type": "object",
+      "required": ["device", "action", "x", "y"],
+      "properties": {
+        "device": { "const": "pointer" },
+        "action": { "enum": ["move", "down", "up"] },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "button": { "type": "integer" }
+      }
+    },
+    "WheelInput": {
+      "type": "object",
+      "required": ["device", "dx", "dy"],
+      "properties": {
+        "device": { "const": "wheel" },
+        "dx": { "type": "number" },
+        "dy": { "type": "number" }
+      }
+    },
+    "GamepadInput": {
+      "type": "object",
+      "required": ["device", "index", "buttons", "axes"],
+      "properties": {
+        "device": { "const": "gamepad" },
+        "index": { "type": "integer", "minimum": 0 },
+        "buttons": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 } },
+        "axes": { "type": "array", "items": { "type": "number", "minimum": -1, "maximum": 1 } }
+      }
+    },
+    "InputEvent": {
+      "oneOf": [
+        { "$ref": "#/$defs/KeyboardInput" },
+        { "$ref": "#/$defs/PointerInput" },
+        { "$ref": "#/$defs/WheelInput" },
+        { "$ref": "#/$defs/GamepadInput" }
+      ]
+    },
+    "Input": {
+      "type": "object",
+      "required": ["type", "events"],
+      "properties": {
+        "type": { "const": "input" },
+        "events": { "type": "array", "items": { "$ref": "#/$defs/InputEvent" } }
+      }
+    },
+    "Pause": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "pause" } }
+    },
+    "Resume": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "resume" } }
+    },
+    "Stop": {
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "stop" } }
+    },
+    "ExtCall": {
+      "type": "object",
+      "required": ["type", "ext", "id", "payload"],
+      "properties": {
+        "type": { "const": "ext" },
+        "ext": { "type": "string", "minLength": 1 },
+        "id": { "type": "integer" },
+        "payload": true
+      }
+    },
+    "Progress": {
+      "type": "object",
+      "required": ["type", "phase", "done", "total"],
+      "properties": {
+        "type": { "const": "progress" },
+        "phase": { "enum": ["fetch", "mount", "boot", "running"] },
+        "done": { "type": "number", "minimum": 0 },
+        "total": { "type": "number", "minimum": 0 }
+      }
+    },
+    "State": {
+      "type": "object",
+      "required": ["type", "state"],
+      "properties": {
+        "type": { "const": "state" },
+        "state": { "enum": ["booting", "running", "paused", "stopped", "error"] },
+        "error": { "type": "string" }
+      }
+    },
+    "Saved": {
+      "type": "object",
+      "required": ["type", "slot"],
+      "properties": {
+        "type": { "const": "saved" },
+        "slot": { "type": "string" }
+      }
+    },
+    "ExtReply": {
+      "type": "object",
+      "required": ["type", "ext", "id", "ok", "payload"],
+      "properties": {
+        "type": { "const": "ext-reply" },
+        "ext": { "type": "string", "minLength": 1 },
+        "id": { "type": "integer" },
+        "ok": { "type": "boolean" },
+        "payload": true
+      }
+    }
+  }
+}
